@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Upload, Play, Download, Settings, Type, Image as ImageIcon } from 'lucide-react';
+import { Upload, Play, Download, Settings, Type, Image as ImageIcon, Music } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import VideoGenerator from '../components/VideoGenerator.js';
 
@@ -10,12 +10,16 @@ export default function Home() {
   const [backgroundImages, setBackgroundImages] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedVideo, setGeneratedVideo] = useState(null);
+  const [audioFile, setAudioFile] = useState(null);
+  const [audioPreview, setAudioPreview] = useState(null);
+  const [audioDuration, setAudioDuration] = useState(0);
   const [textSettings, setTextSettings] = useState({
     fontSize: 48,
     color: '#ffffff',
     position: 'center',
     fontFamily: 'Arial'
   });
+  const [videoLayout, setVideoLayout] = useState('landscape'); // 'landscape' or 'portrait'
 
   const onDrop = (acceptedFiles) => {
     acceptedFiles.forEach(file => {
@@ -56,11 +60,11 @@ export default function Home() {
       // Check if multi-image method exists, otherwise use single image method
       if (VideoGenerator.generateMultiImageVideo && typeof VideoGenerator.generateMultiImageVideo === 'function') {
         console.log('Using multi-image video generation');
-        videoBlob = await VideoGenerator.generateMultiImageVideo(text, backgroundImages, textSettings);
+        videoBlob = await VideoGenerator.generateMultiImageVideo(text, backgroundImages, textSettings, audioFile, videoLayout);
       } else {
         console.log('Multi-image method not found, using single image method');
         // Use the first image for now
-        videoBlob = await VideoGenerator.generateVideo(text, backgroundImages[0].file, textSettings);
+        videoBlob = await VideoGenerator.generateVideo(text, backgroundImages[0].file, textSettings, audioFile, videoLayout);
       }
       
       setGeneratedVideo(URL.createObjectURL(videoBlob));
@@ -86,6 +90,30 @@ export default function Home() {
 
   const clearAllImages = () => {
     setBackgroundImages([]);
+  };
+
+  const handleAudioUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setAudioFile(file);
+      setAudioPreview(URL.createObjectURL(file));
+      
+      // Get audio duration
+      const audio = new Audio();
+      audio.src = URL.createObjectURL(file);
+      audio.onloadedmetadata = () => {
+        setAudioDuration(Math.ceil(audio.duration));
+      };
+    }
+  };
+
+  const removeAudio = () => {
+    setAudioFile(null);
+    if (audioPreview) {
+      URL.revokeObjectURL(audioPreview);
+      setAudioPreview(null);
+    }
+    setAudioDuration(0);
   };
 
   const handleDownload = () => {
@@ -225,15 +253,107 @@ export default function Home() {
               )}
             </div>
 
+            {/* Audio Upload */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <Music className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-800">Background Audio</h2>
+                </div>
+                {audioFile && (
+                  <button
+                    onClick={removeAudio}
+                    className="px-4 py-2 text-red-600 hover:text-red-800 text-sm font-medium bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
+                  >
+                    Remove Audio
+                  </button>
+                )}
+              </div>
+              
+              {!audioFile ? (
+                <div className="border-3 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 border-gray-300 hover:border-indigo-400 hover:bg-gray-50">
+                  <label className="cursor-pointer block">
+                    <div className="p-4 bg-indigo-100 rounded-full w-16 h-16 mx-auto mb-4 group-hover:bg-indigo-200 transition-colors duration-200">
+                      <Upload className="w-8 h-8 mx-auto text-indigo-600" />
+                    </div>
+                    <p className="text-gray-700 text-lg font-medium mb-2">
+                      Click to upload background audio
+                    </p>
+                    <p className="text-sm text-gray-500">Supports: MP3, WAV</p>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={handleAudioUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              ) : (
+                <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-indigo-100 rounded-lg">
+                      <Music className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-800 mb-1">
+                        {audioFile.name}
+                      </p>
+                      <audio
+                        controls
+                        src={audioPreview}
+                        className="w-full h-8"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Text Settings */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <Settings className="w-6 h-6 text-purple-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800">Text Settings</h2>
+                <h2 className="text-2xl font-bold text-gray-800">Settings</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Video Layout */}
+                <div className="space-y-3">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Video Layout
+                  </label>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setVideoLayout('landscape')}
+                      className={`flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
+                        videoLayout === 'landscape'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-full h-12 bg-gray-200 rounded-md mb-2"></div>
+                      <span className="text-sm font-medium">Landscape</span>
+                      <span className="text-xs text-gray-500 block">16:9</span>
+                    </button>
+                    <button
+                      onClick={() => setVideoLayout('portrait')}
+                      className={`flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
+                        videoLayout === 'portrait'
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-8 h-16 bg-gray-200 rounded-md mx-auto mb-2"></div>
+                      <span className="text-sm font-medium">Portrait</span>
+                      <span className="text-xs text-gray-500 block">9:16</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Font Size */}
                 <div className="space-y-3">
                   <label className="block text-sm font-semibold text-gray-700">
                     Font Size: {textSettings.fontSize}px
@@ -320,9 +440,9 @@ export default function Home() {
                     <Play className="w-6 h-6" />
                   </div>
                   <span>Generate Video</span>
-                  {backgroundImages.length > 0 && (
+                  {(audioFile || backgroundImages.length > 0) && (
                     <span className="text-sm opacity-90 bg-white/20 px-3 py-1 rounded-full">
-                      {backgroundImages.reduce((total, img) => total + img.duration, 0)}s
+                      {audioFile ? `${audioDuration}s` : `${backgroundImages.reduce((total, img) => total + img.duration, 0)}s`}
                     </span>
                   )}
                 </>
@@ -338,15 +458,13 @@ export default function Home() {
               </div>
               <h2 className="text-2xl font-bold text-gray-800">Preview</h2>
             </div>
-            <div className="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 overflow-hidden">
+            <div className={`relative ${videoLayout === 'portrait' ? 'aspect-[9/16]' : 'aspect-video'} bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 overflow-hidden`}>
               {generatedVideo ? (
                 <div className="w-full h-full">
                   <video
                     src={generatedVideo}
                     controls
                     className="w-full h-full rounded-2xl object-cover"
-                    autoPlay
-                    muted
                   />
                   <button
                     onClick={handleDownload}

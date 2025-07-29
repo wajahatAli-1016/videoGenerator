@@ -1,193 +1,73 @@
 class VideoGenerator {
-  
-  static async generateVideoWithCanvas(text, imageFile, textSettings) {
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      // Load image
-      const imageUrl = URL.createObjectURL(imageFile);
-      const img = new Image();
-      
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = imageUrl;
-      });
-
-      // Set canvas size
-      canvas.width = img.width;
-      canvas.height = img.height;
-
-      // Draw background image
-      ctx.drawImage(img, 0, 0);
-
-      // Function to wrap text to fit within a specified width
-      const wrapText = (ctx, text, maxWidth) => {
-        const words = text.split(' ');
-        const lines = [];
-        let currentLine = words[0];
-
-        for (let i = 1; i < words.length; i++) {
-          const word = words[i];
-          const width = ctx.measureText(currentLine + ' ' + word).width;
-          if (width < maxWidth) {
-            currentLine += ' ' + word;
-          } else {
-            lines.push(currentLine);
-            currentLine = word;
-          }
-        }
-        lines.push(currentLine);
-        return lines;
-      };
-
-      // Configure text
-      ctx.font = `${textSettings.fontSize}px ${textSettings.fontFamily}`;
-      ctx.fillStyle = textSettings.color;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-
-      // Add text shadow for better visibility
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
-
-      // Calculate text position and max width
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const padding = 50;
-      // Use the image width for text wrapping, with padding
-      const maxTextWidth = img.width - (padding * 2);
-
-      let textX, textY, textAlign, textBaseline;
-      switch (textSettings.position) {
-        case 'top':
-          textX = centerX;
-          textY = padding;
-          textAlign = 'center';
-          textBaseline = 'top';
-          break;
-        case 'bottom':
-          textX = centerX;
-          textY = canvas.height - padding;
-          textAlign = 'center';
-          textBaseline = 'bottom';
-          break;
-        case 'top-left':
-          textX = padding;
-          textY = padding;
-          textAlign = 'left';
-          textBaseline = 'top';
-          break;
-        case 'top-right':
-          textX = canvas.width - padding;
-          textY = padding;
-          textAlign = 'right';
-          textBaseline = 'top';
-          break;
-        case 'bottom-left':
-          textX = padding;
-          textY = canvas.height - padding;
-          textAlign = 'left';
-          textBaseline = 'bottom';
-          break;
-        case 'bottom-right':
-          textX = canvas.width - padding;
-          textY = canvas.height - padding;
-          textAlign = 'right';
-          textBaseline = 'bottom';
-          break;
-        default: // center
-          textX = centerX;
-          textY = centerY;
-          textAlign = 'center';
-          textBaseline = 'middle';
-      }
-
-      // Set text alignment
-      ctx.textAlign = textAlign;
-      ctx.textBaseline = textBaseline;
-
-      // Wrap text into lines
-      const lines = wrapText(ctx, text, maxTextWidth);
-      const lineHeight = textSettings.fontSize * 1.2; // 1.2 times font size for line spacing
-
-      // Calculate total text height
-      const totalTextHeight = lines.length * lineHeight;
-
-      // Adjust Y position based on text baseline and number of lines
-      let adjustedY = textY;
-      if (textBaseline === 'middle') {
-        adjustedY = textY - (totalTextHeight / 2) + (lineHeight / 2);
-      } else if (textBaseline === 'bottom') {
-        adjustedY = textY - totalTextHeight;
-      }
-
-      // Draw each line of text
-      lines.forEach((line, index) => {
-        const y = adjustedY + (index * lineHeight);
-        ctx.fillText(line, textX, y);
-      });
-
-      // Convert canvas to blob
-      const blob = await new Promise(resolve => {
-        canvas.toBlob(resolve, 'image/png');
-      });
-
-      URL.revokeObjectURL(imageUrl);
-      return blob;
-    } catch (error) {
-      console.error('Error in canvas fallback:', error);
-      throw error;
+  // Helper function to get canvas dimensions based on layout
+  static getCanvasDimensions(layout) {
+    if (layout === 'portrait') {
+      return { width: 720, height: 1280 }; // 9:16 ratio
     }
+    return { width: 1280, height: 720 }; // 16:9 ratio (default landscape)
   }
 
-  static async generateVideo(text, imageFile, textSettings) {
+  // Helper function to wrap text
+  static wrapText(context, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = words[0];
+
+    for (let i = 1; i < words.length; i++) {
+      const word = words[i];
+      const width = context.measureText(currentLine + ' ' + word).width;
+      if (width < maxWidth) {
+        currentLine += ' ' + word;
+      } else {
+        lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    lines.push(currentLine);
+    return lines;
+  }
+
+  static async generateVideo(text, imageFile, textSettings, audioFile, layout = 'landscape') {
     try {
-      // Create canvas for video frames
+      const dimensions = VideoGenerator.getCanvasDimensions(layout);
       const canvas = document.createElement('canvas');
-      canvas.width = 1280;
-      canvas.height = 720;
+      canvas.width = dimensions.width;
+      canvas.height = dimensions.height;
       const ctx = canvas.getContext('2d');
 
-      // Load the background image
-      const imageUrl = URL.createObjectURL(imageFile);
+      // Create audio context if audio file is provided
+      let audioContext, audioSource, audioDestination;
+      let duration = 5000; // Default 5 seconds in milliseconds
+
+      if (audioFile) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioDestination = audioContext.createMediaStreamDestination();
+        
+        // Get audio duration
+        const audioBuffer = await fetch(URL.createObjectURL(audioFile))
+          .then(response => response.arrayBuffer())
+          .then(buffer => audioContext.decodeAudioData(buffer));
+        
+        duration = Math.ceil(audioBuffer.duration * 1000); // Convert to milliseconds and round up
+        console.log('Audio duration:', duration, 'ms');
+        
+        audioSource = audioContext.createBufferSource();
+        audioSource.buffer = audioBuffer;
+        audioSource.connect(audioDestination);
+      }
+
+      // Load image
       const img = new Image();
-      
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
-        img.src = imageUrl;
+        img.src = URL.createObjectURL(imageFile);
       });
 
-      // Function to wrap text to fit within a specified width
-      const wrapText = (ctx, text, maxWidth) => {
-        const words = text.split(' ');
-        const lines = [];
-        let currentLine = words[0];
-
-        for (let i = 1; i < words.length; i++) {
-          const word = words[i];
-          const width = ctx.measureText(currentLine + ' ' + word).width;
-          if (width < maxWidth) {
-            currentLine += ' ' + word;
-          } else {
-            lines.push(currentLine);
-            currentLine = word;
-          }
-        }
-        lines.push(currentLine);
-        return lines;
-      };
-
-      // Function to draw a single frame
+      // Draw frame function
       const drawFrame = () => {
-        // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Draw background image (scaled to fit)
         const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
         const scaledWidth = img.width * scale;
         const scaledHeight = img.height * scale;
@@ -196,160 +76,136 @@ class VideoGenerator {
         
         ctx.drawImage(img, imgX, imgY, scaledWidth, scaledHeight);
 
-        // Configure text
+        // Text configuration
         ctx.font = `${textSettings.fontSize}px ${textSettings.fontFamily}`;
         ctx.fillStyle = textSettings.color;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-
-        // Add text shadow for better visibility
         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
         ctx.shadowBlur = 4;
         ctx.shadowOffsetX = 2;
         ctx.shadowOffsetY = 2;
 
-        // Calculate text position and max width based on actual image dimensions
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const padding = 50;
-        // Use the scaled image width for text wrapping, with padding
-        const maxTextWidth = scaledWidth - (padding * 2);
+        // Calculate text position and wrap text
+        const maxTextWidth = Math.min(scaledWidth - 100, canvas.width - 100);
+        const paragraphs = text.split('\n');
+        const allLines = [];
+        
+        paragraphs.forEach(paragraph => {
+          const wrappedLines = VideoGenerator.wrapText(ctx, paragraph, maxTextWidth);
+          allLines.push(...wrappedLines);
+        });
 
-        let textX, textY, textAlign, textBaseline;
+        const lineHeight = textSettings.fontSize * 1.2;
+        const totalTextHeight = allLines.length * lineHeight;
+        
+        let textX = canvas.width / 2;
+        let textY = canvas.height / 2;
+
+        // Adjust text position based on settings
         switch (textSettings.position) {
           case 'top':
-            textX = centerX;
-            textY = imgY + padding;
-            textAlign = 'center';
-            textBaseline = 'top';
+            textY = textSettings.fontSize * 2;
             break;
           case 'bottom':
-            textX = centerX;
-            textY = imgY + scaledHeight - padding;
-            textAlign = 'center';
-            textBaseline = 'bottom';
+            textY = canvas.height - totalTextHeight - textSettings.fontSize;
             break;
           case 'top-left':
-            textX = imgX + padding;
-            textY = imgY + padding;
-            textAlign = 'left';
-            textBaseline = 'top';
+            textX = maxTextWidth / 2 + 50;
+            textY = textSettings.fontSize * 2;
+            ctx.textAlign = 'left';
             break;
           case 'top-right':
-            textX = imgX + scaledWidth - padding;
-            textY = imgY + padding;
-            textAlign = 'right';
-            textBaseline = 'top';
+            textX = canvas.width - (maxTextWidth / 2 + 50);
+            textY = textSettings.fontSize * 2;
+            ctx.textAlign = 'right';
             break;
           case 'bottom-left':
-            textX = imgX + padding;
-            textY = imgY + scaledHeight - padding;
-            textAlign = 'left';
-            textBaseline = 'bottom';
+            textX = maxTextWidth / 2 + 50;
+            textY = canvas.height - totalTextHeight - textSettings.fontSize;
+            ctx.textAlign = 'left';
             break;
           case 'bottom-right':
-            textX = imgX + scaledWidth - padding;
-            textY = imgY + scaledHeight - padding;
-            textAlign = 'right';
-            textBaseline = 'bottom';
+            textX = canvas.width - (maxTextWidth / 2 + 50);
+            textY = canvas.height - totalTextHeight - textSettings.fontSize;
+            ctx.textAlign = 'right';
             break;
           default: // center
-            textX = centerX;
-            textY = centerY;
-            textAlign = 'center';
-            textBaseline = 'middle';
+            textY = (canvas.height - totalTextHeight) / 2;
         }
 
-        // Set text alignment
-        ctx.textAlign = textAlign;
-        ctx.textBaseline = textBaseline;
-
-        // Wrap text into lines
-        const lines = wrapText(ctx, text, maxTextWidth);
-        const lineHeight = textSettings.fontSize * 1.2; // 1.2 times font size for line spacing
-
-        // Calculate total text height
-        const totalTextHeight = lines.length * lineHeight;
-
-        // Adjust Y position based on text baseline and number of lines
-        let adjustedY = textY;
-        if (textBaseline === 'middle') {
-          adjustedY = textY - (totalTextHeight / 2) + (lineHeight / 2);
-        } else if (textBaseline === 'bottom') {
-          adjustedY = textY - totalTextHeight;
-        }
-
-        // Draw each line of text
-        lines.forEach((line, index) => {
-          const y = adjustedY + (index * lineHeight);
-          ctx.fillText(line, textX, y);
+        // Draw each line
+        allLines.forEach((line, index) => {
+          ctx.fillText(line, textX, textY + (index * lineHeight));
         });
       };
 
-      // Draw initial frame
-      drawFrame();
+      // Create MediaRecorder
+      const stream = canvas.captureStream(30);
 
-      // Create MediaRecorder to record the canvas
-      const stream = canvas.captureStream(30); // 30 FPS
-      
-      // Try different video formats for better compatibility
-      let mimeType = 'video/webm;codecs=vp8';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm';
+      // Add audio track if audio file is provided
+      if (audioFile && audioContext && audioDestination) {
+        stream.addTrack(audioDestination.stream.getAudioTracks()[0]);
       }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/mp4';
-      }
+
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
+        : 'video/webm';
 
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: mimeType,
-        videoBitsPerSecond: 5000000 // 5 Mbps for better quality
+        mimeType,
+        videoBitsPerSecond: 5000000
       });
 
       const chunks = [];
-      
+
       return new Promise((resolve, reject) => {
         mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             chunks.push(event.data);
-            console.log('Video chunk received:', event.data.size, 'bytes');
           }
         };
 
         mediaRecorder.onstop = () => {
+          if (audioSource) {
+            audioSource.stop();
+            audioContext.close();
+          }
           const blob = new Blob(chunks, { type: mimeType });
-          console.log('Video generation complete:', blob.size, 'bytes, type:', mimeType);
-          
-          // Clean up
-          URL.revokeObjectURL(imageUrl);
-          
           resolve(blob);
         };
 
         mediaRecorder.onerror = (error) => {
-          console.error('MediaRecorder error:', error);
-          URL.revokeObjectURL(imageUrl);
+          if (audioSource) {
+            audioSource.stop();
+            audioContext.close();
+          }
           reject(error);
         };
 
         // Start recording
-        mediaRecorder.start(100); // Request data every 100ms
-        console.log('Started recording video with format:', mimeType);
-        
-        // Record for 5 seconds with continuous frame updates
-        const duration = 5000; // 5 seconds
-        const frameInterval = 1000 / 30; // 30 FPS
+        console.log('Starting recording for duration:', duration, 'ms');
+        mediaRecorder.start(100);
+        if (audioSource) {
+          audioSource.start();
+        }
+
+        let startTime = performance.now();
         let elapsed = 0;
-        
-        const recordInterval = setInterval(() => {
-          drawFrame(); // Redraw frame to ensure continuous recording
-          elapsed += frameInterval;
-          
-          if (elapsed >= duration) {
-            clearInterval(recordInterval);
+
+        const animate = () => {
+          elapsed = performance.now() - startTime;
+          drawFrame();
+
+          if (elapsed < duration) {
+            requestAnimationFrame(animate);
+          } else {
+            console.log('Stopping recording after:', elapsed, 'ms');
             mediaRecorder.stop();
           }
-        }, frameInterval);
+        };
+
+        animate();
       });
     } catch (error) {
       console.error('Error generating video:', error);
@@ -357,172 +213,151 @@ class VideoGenerator {
     }
   }
 
-  static async generateMultiImageVideo(text, backgroundImages, textSettings) {
+  static async generateMultiImageVideo(text, images, textSettings, audioFile, layout = 'landscape') {
     try {
-      // Create canvas for video frames
+      const dimensions = VideoGenerator.getCanvasDimensions(layout);
       const canvas = document.createElement('canvas');
-      canvas.width = 1280;
-      canvas.height = 720;
+      canvas.width = dimensions.width;
+      canvas.height = dimensions.height;
       const ctx = canvas.getContext('2d');
 
-      // Pre-load all images
-      const loadedImages = [];
-      for (const imageData of backgroundImages) {
-        const imageUrl = URL.createObjectURL(imageData.file);
-        const img = new Image();
+      // Create audio context if audio file is provided
+      let audioContext, audioSource, audioDestination;
+      let audioDuration = 0;
+      
+      if (audioFile) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioDestination = audioContext.createMediaStreamDestination();
         
+        // Get audio duration
+        const audioBuffer = await fetch(URL.createObjectURL(audioFile))
+          .then(response => response.arrayBuffer())
+          .then(buffer => audioContext.decodeAudioData(buffer));
+        
+        audioDuration = Math.ceil(audioBuffer.duration * 1000);
+        console.log('Audio duration:', audioDuration, 'ms');
+        
+        audioSource = audioContext.createBufferSource();
+        audioSource.buffer = audioBuffer;
+        audioSource.connect(audioDestination);
+      }
+
+      // Load all images
+      const loadedImages = await Promise.all(images.map(async (imageData) => {
+        const img = new Image();
         await new Promise((resolve, reject) => {
           img.onload = resolve;
           img.onerror = reject;
-          img.src = imageUrl;
+          img.src = URL.createObjectURL(imageData.file);
         });
-        
-        loadedImages.push({
-          image: img,
-          duration: imageData.duration * 1000, // Convert to milliseconds
-          url: imageUrl
+        return { img, duration: imageData.duration };
+      }));
+
+      // Calculate total video duration from images
+      let totalVideoDuration = loadedImages.reduce((sum, img) => sum + (img.duration * 1000), 0);
+      console.log('Initial video duration:', totalVideoDuration, 'ms');
+      
+      // If audio is longer than video, adjust image durations proportionally
+      if (audioDuration > 0 && audioDuration > totalVideoDuration) {
+        const scaleFactor = audioDuration / totalVideoDuration;
+        loadedImages.forEach(img => {
+          img.duration = img.duration * scaleFactor;
         });
+        totalVideoDuration = audioDuration;
+        console.log('Adjusted video duration to match audio:', totalVideoDuration, 'ms');
       }
 
-      // Function to wrap text to fit within a specified width
-      const wrapText = (ctx, text, maxWidth) => {
-        const words = text.split(' ');
-        const lines = [];
-        let currentLine = words[0];
-
-        for (let i = 1; i < words.length; i++) {
-          const word = words[i];
-          const width = ctx.measureText(currentLine + ' ' + word).width;
-          if (width < maxWidth) {
-            currentLine += ' ' + word;
-          } else {
-            lines.push(currentLine);
-            currentLine = word;
-          }
-        }
-        lines.push(currentLine);
-        return lines;
-      };
-
-      // Function to draw a frame for a specific image
-      const drawFrame = (img) => {
-        // Clear canvas
+      // Function to draw frame with current image
+      const drawFrame = (currentImage) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Draw background image (scaled to fit)
-        const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
-        const scaledWidth = img.width * scale;
-        const scaledHeight = img.height * scale;
+        const scale = Math.min(canvas.width / currentImage.width, canvas.height / currentImage.height);
+        const scaledWidth = currentImage.width * scale;
+        const scaledHeight = currentImage.height * scale;
         const imgX = (canvas.width - scaledWidth) / 2;
         const imgY = (canvas.height - scaledHeight) / 2;
         
-        ctx.drawImage(img, imgX, imgY, scaledWidth, scaledHeight);
+        ctx.drawImage(currentImage, imgX, imgY, scaledWidth, scaledHeight);
 
         // Configure text
         ctx.font = `${textSettings.fontSize}px ${textSettings.fontFamily}`;
         ctx.fillStyle = textSettings.color;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-
-        // Add text shadow for better visibility
         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
         ctx.shadowBlur = 4;
         ctx.shadowOffsetX = 2;
         ctx.shadowOffsetY = 2;
 
-        // Calculate text position and max width based on actual image dimensions
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const padding = 50;
-        // Use the scaled image width for text wrapping, with padding
-        const maxTextWidth = scaledWidth - (padding * 2);
+        // Calculate text position and wrap text
+        const maxTextWidth = Math.min(scaledWidth - 100, canvas.width - 100);
+        const paragraphs = text.split('\n');
+        const allLines = [];
+        
+        paragraphs.forEach(paragraph => {
+          const wrappedLines = VideoGenerator.wrapText(ctx, paragraph, maxTextWidth);
+          allLines.push(...wrappedLines);
+        });
 
-        let textX, textY, textAlign, textBaseline;
+        const lineHeight = textSettings.fontSize * 1.2;
+        const totalTextHeight = allLines.length * lineHeight;
+        
+        let textX = canvas.width / 2;
+        let textY = canvas.height / 2;
+
+        // Adjust text position based on settings
         switch (textSettings.position) {
           case 'top':
-            textX = centerX;
-            textY = imgY + padding;
-            textAlign = 'center';
-            textBaseline = 'top';
+            textY = textSettings.fontSize * 2;
             break;
           case 'bottom':
-            textX = centerX;
-            textY = imgY + scaledHeight - padding;
-            textAlign = 'center';
-            textBaseline = 'bottom';
+            textY = canvas.height - totalTextHeight - textSettings.fontSize;
             break;
           case 'top-left':
-            textX = imgX + padding;
-            textY = imgY + padding;
-            textAlign = 'left';
-            textBaseline = 'top';
+            textX = maxTextWidth / 2 + 50;
+            textY = textSettings.fontSize * 2;
+            ctx.textAlign = 'left';
             break;
           case 'top-right':
-            textX = imgX + scaledWidth - padding;
-            textY = imgY + padding;
-            textAlign = 'right';
-            textBaseline = 'top';
+            textX = canvas.width - (maxTextWidth / 2 + 50);
+            textY = textSettings.fontSize * 2;
+            ctx.textAlign = 'right';
             break;
           case 'bottom-left':
-            textX = imgX + padding;
-            textY = imgY + scaledHeight - padding;
-            textAlign = 'left';
-            textBaseline = 'bottom';
+            textX = maxTextWidth / 2 + 50;
+            textY = canvas.height - totalTextHeight - textSettings.fontSize;
+            ctx.textAlign = 'left';
             break;
           case 'bottom-right':
-            textX = imgX + scaledWidth - padding;
-            textY = imgY + scaledHeight - padding;
-            textAlign = 'right';
-            textBaseline = 'bottom';
+            textX = canvas.width - (maxTextWidth / 2 + 50);
+            textY = canvas.height - totalTextHeight - textSettings.fontSize;
+            ctx.textAlign = 'right';
             break;
           default: // center
-            textX = centerX;
-            textY = centerY;
-            textAlign = 'center';
-            textBaseline = 'middle';
+            textY = (canvas.height - totalTextHeight) / 2;
         }
 
-        // Set text alignment
-        ctx.textAlign = textAlign;
-        ctx.textBaseline = textBaseline;
-
-        // Wrap text into lines
-        const lines = wrapText(ctx, text, maxTextWidth);
-        const lineHeight = textSettings.fontSize * 1.2; // 1.2 times font size for line spacing
-
-        // Calculate total text height
-        const totalTextHeight = lines.length * lineHeight;
-
-        // Adjust Y position based on text baseline and number of lines
-        let adjustedY = textY;
-        if (textBaseline === 'middle') {
-          adjustedY = textY - (totalTextHeight / 2) + (lineHeight / 2);
-        } else if (textBaseline === 'bottom') {
-          adjustedY = textY - totalTextHeight;
-        }
-
-        // Draw each line of text
-        lines.forEach((line, index) => {
-          const y = adjustedY + (index * lineHeight);
-          ctx.fillText(line, textX, y);
+        // Draw each line
+        allLines.forEach((line, index) => {
+          ctx.fillText(line, textX, textY + (index * lineHeight));
         });
       };
 
-      // Create MediaRecorder to record the canvas
-      const stream = canvas.captureStream(30); // 30 FPS
-      
-      // Try different video formats for better compatibility
-      let mimeType = 'video/webm;codecs=vp8';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm';
-      }
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/mp4';
+      // Create MediaRecorder
+      const stream = canvas.captureStream(30);
+
+      // Add audio track if audio file is provided
+      if (audioFile && audioContext && audioDestination) {
+        stream.addTrack(audioDestination.stream.getAudioTracks()[0]);
       }
 
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
+        : 'video/webm';
+
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: mimeType,
-        videoBitsPerSecond: 5000000 // 5 Mbps for better quality
+        mimeType,
+        videoBitsPerSecond: 5000000
       });
 
       const chunks = [];
@@ -531,83 +366,67 @@ class VideoGenerator {
         mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             chunks.push(event.data);
-            console.log('Video chunk received:', event.data.size, 'bytes');
           }
         };
 
         mediaRecorder.onstop = () => {
+          if (audioSource) {
+            audioSource.stop();
+            audioContext.close();
+          }
           const blob = new Blob(chunks, { type: mimeType });
-          console.log('Multi-image video generation complete:', blob.size, 'bytes, type:', mimeType);
-          
-          // Clean up all image URLs
-          loadedImages.forEach(imgData => URL.revokeObjectURL(imgData.url));
-          
+          console.log('Video generation complete, duration:', totalVideoDuration, 'ms');
           resolve(blob);
         };
 
         mediaRecorder.onerror = (error) => {
-          console.error('MediaRecorder error:', error);
-          loadedImages.forEach(imgData => URL.revokeObjectURL(imgData.url));
+          if (audioSource) {
+            audioSource.stop();
+            audioContext.close();
+          }
           reject(error);
         };
 
         // Start recording
-        mediaRecorder.start(100); // Request data every 100ms
-        console.log('Started recording multi-image video with format:', mimeType);
-        
-        // Use performance.now() for more accurate timing
-        const startTime = performance.now();
-        
-        // Calculate total duration and create timing schedule
-        const totalDuration = loadedImages.reduce((total, imgData) => total + imgData.duration, 0);
-        const frameInterval = 1000 / 30; // 30 FPS
-        let elapsed = 0;
-        
-        // Create a precise timing schedule
-        const imageSchedule = [];
-        let currentTime = 0;
-        loadedImages.forEach((imgData, index) => {
-          imageSchedule.push({
-            startTime: currentTime,
-            endTime: currentTime + imgData.duration,
-            image: imgData.image,
-            index: index
-          });
-          currentTime += imgData.duration;
-        });
-        
-        console.log('Image schedule:', imageSchedule.map(s => `${s.index}: ${s.startTime}ms - ${s.endTime}ms`));
-        console.log('Total duration:', totalDuration, 'ms');
-        
-        const recordInterval = setInterval(() => {
-          // Calculate actual elapsed time using performance.now()
-          const actualElapsed = performance.now() - startTime;
+        console.log('Starting recording for duration:', totalVideoDuration, 'ms');
+        mediaRecorder.start(100);
+        if (audioSource) {
+          audioSource.start();
+        }
+
+        let startTime = performance.now();
+        let currentImageIndex = 0;
+        let elapsedInCurrentImage = 0;
+
+        const animate = () => {
+          const currentTime = performance.now();
+          const totalElapsed = currentTime - startTime;
           
-          // Find the current image based on elapsed time
-          const currentImage = imageSchedule.find(schedule => 
-            actualElapsed >= schedule.startTime && actualElapsed < schedule.endTime
-          ) || imageSchedule[imageSchedule.length - 1]; // Fallback to last image
-          
-          // Draw frame with current image
-          drawFrame(currentImage.image);
-          
-          // Log timing every second for debugging
-          if (Math.floor(actualElapsed / 1000) !== Math.floor((actualElapsed - frameInterval) / 1000)) {
-            console.log(`Video time: ${Math.floor(actualElapsed / 1000)}s, showing image ${currentImage.index}`);
-          }
-          
-          elapsed = actualElapsed;
-          
-          // Stop recording when we've reached the total duration
-          if (actualElapsed >= totalDuration) {
-            console.log(`Recording complete. Total elapsed: ${actualElapsed}ms, Expected: ${totalDuration}ms`);
-            clearInterval(recordInterval);
+          if (totalElapsed >= totalVideoDuration) {
+            console.log('Finished recording after:', totalElapsed, 'ms');
             mediaRecorder.stop();
+            return;
           }
-        }, frameInterval);
+
+          const currentImage = loadedImages[currentImageIndex];
+          drawFrame(currentImage.img);
+          
+          elapsedInCurrentImage = totalElapsed - loadedImages
+            .slice(0, currentImageIndex)
+            .reduce((sum, img) => sum + (img.duration * 1000), 0);
+          
+          if (elapsedInCurrentImage >= currentImage.duration * 1000) {
+            currentImageIndex = (currentImageIndex + 1) % loadedImages.length;
+            elapsedInCurrentImage = 0;
+          }
+          
+          requestAnimationFrame(animate);
+        };
+
+        animate();
       });
     } catch (error) {
-      console.error('Error generating multi-image video:', error);
+      console.error('Error generating video:', error);
       throw error;
     }
   }
