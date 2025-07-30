@@ -154,7 +154,7 @@ class VideoGenerator {
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 5000000
+        videoBitsPerSecond: 1500000
       });
 
       const chunks = [];
@@ -357,7 +357,7 @@ class VideoGenerator {
 
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 5000000
+        videoBitsPerSecond: 1500000
       });
 
       const chunks = [];

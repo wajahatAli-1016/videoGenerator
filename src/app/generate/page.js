@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Upload, Play, Download, Settings, Type, Image as ImageIcon, Music, ArrowLeft, Zap, Palette, Layout, Volume2, Clock } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Upload, Play, Settings, Type, Image as ImageIcon, Music, ArrowLeft, Zap, Palette, Layout, Volume2, Clock } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import VideoGenerator from '../../components/VideoGenerator.js';
 import Link from 'next/link';
@@ -22,6 +22,31 @@ export default function Generate() {
     fontFamily: 'Arial'
   });
   const [videoLayout, setVideoLayout] = useState('landscape'); // 'landscape' or 'portrait'
+  const textareaRef = useRef(null);
+
+  // Handle textarea auto-resize
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const lineHeight = 24; // Line height in pixels
+      const defaultLines = 3; // Default number of lines
+      const maxLines = 4; // Maximum lines before showing scrollbar
+      const defaultHeight = (lineHeight * defaultLines) + 16; // 16px for padding
+      const maxHeight = (lineHeight * maxLines) + 16;
+
+      // Set minimum height for empty or short content
+      textarea.style.height = `${defaultHeight}px`;
+      
+      // If content exceeds default height, adjust up to max height
+      const scrollHeight = textarea.scrollHeight;
+      if (scrollHeight > defaultHeight) {
+        textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+      }
+      
+      // Show scrollbar if content exceeds max height
+      textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
+    }
+  }, [text]);
 
   const onDrop = (acceptedFiles) => {
     acceptedFiles.forEach(file => {
@@ -70,6 +95,16 @@ export default function Generate() {
       }
       
       setGeneratedVideo(URL.createObjectURL(videoBlob));
+      // Scroll to video section after successful generation
+      setTimeout(() => {
+        const videoSection = document.getElementById('videoPreviewSection');
+        if (videoSection) {
+          window.scrollTo({
+            top: videoSection.offsetTop - 100,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
     } catch (error) {
       console.error('Error generating video:', error);
       alert('Error generating video. Please try again.');
@@ -118,15 +153,7 @@ export default function Generate() {
     setAudioDuration(0);
   };
 
-  const handleDownload = () => {
-    if (generatedVideo) {
-      const link = document.createElement('a');
-      link.href = generatedVideo;
-      // Use .webm extension since that's what we're generating
-      link.download = 'generated-video.webm';
-      link.click();
-    }
-  };
+
 
   const totalVideoDuration = audioFile ? audioDuration : backgroundImages.reduce((total, img) => total + img.duration, 0);
 
@@ -188,9 +215,65 @@ export default function Generate() {
       </div>
 
       <div className="container mx-auto px-6 py-8 relative z-10">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-7xl mx-auto">
-          {/* Input Section */}
-          <div className="space-y-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Preview Section - Moved to top */}
+          <div id="videoPreviewSection" className={videoLayout === 'portrait' ? styles.previewPortrait : styles.previewLandscape}>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-gradient-to-br from-orange-100 to-red-200 rounded-2xl group-hover:scale-110 transition-transform duration-300">
+                <Play className="w-7 h-7 text-orange-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">Live Preview</h2>
+                <p className="text-sm text-gray-500">Watch your creation come to life</p>
+              </div>
+            </div>
+
+            {/* Video Container */}
+            <div className={`relative ${
+              videoLayout === 'portrait' 
+                ? `aspect-[9/16] ${generatedVideo ? 'max-w-[800px]' : 'max-w-[400px]'} transition-all duration-500 mx-auto` 
+                : 'aspect-video'
+            } mb-6`}>
+              <div className="">
+                {generatedVideo ? (
+                  <video
+                    src={generatedVideo}
+                    controls
+                    className={
+                      videoLayout === 'portrait' 
+                        ? styles.portraitVideo 
+                        : styles.landscapeVideo
+                    }
+                  
+                   />
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full py-8">
+                    <div className="relative w-32 h-32 mb-6">
+                      <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center shadow-inner animate-pulse">
+                        <Play className="w-16 h-16 opacity-50" />
+                      </div>
+                      <div className="absolute inset-0 rounded-full border-4 border-dashed border-gray-300 animate-spin"></div>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xl font-bold mb-3">🎬 Your video preview will appear here</p>
+                      <p className="text-base mb-4">Upload images and add text to get started</p>
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce delay-100"></div>
+                        <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce delay-200"></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+
+          </div>
+
+          {/* Controls Grid - 2 columns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Generate Button */}
             {/* Text Input */}
             <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl border border-white/30 p-8 hover:shadow-3xl transition-all duration-500 transform hover:scale-[1.02] group">
               <div className="flex items-center gap-4 mb-6">
@@ -210,10 +293,16 @@ export default function Generate() {
               </div>
               <div className="relative">
                 <textarea
+                  ref={textareaRef}
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder="Enter your inspiring text here... ✨"
-                  className="w-full h-40 p-6 border-2 border-gray-200 rounded-2xl resize-none focus:ring-4 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-300 text-gray-700 placeholder-gray-400 bg-gradient-to-br from-white to-gray-50"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl resize-none focus:ring-4 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-300 text-gray-700 placeholder-gray-400 bg-gradient-to-br from-white to-gray-50"
+                  style={{
+                    lineHeight: '24px',
+                    minHeight: '88px', // 3 lines (24px * 3) + 16px padding
+                    maxHeight: '112px' // 4 lines (24px * 4) + 16px padding
+                  }}
                 />
                 {text.length === 0 && (
                   <div className="absolute bottom-4 right-4 text-gray-300">
@@ -252,9 +341,9 @@ export default function Generate() {
               </div>
               
               {/* Upload Area - Made more compact */}
-              <div
+                              <div
                 {...getRootProps()}
-                className={`border-3 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-500 mb-4 group/upload relative overflow-hidden ${
+                className={`border-3 border-dashed rounded-2xl p-3 text-center cursor-pointer transition-all duration-500 mb-4 group/upload relative overflow-hidden ${
                   isDragActive
                     ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 scale-105 shadow-xl'
                     : 'border-gray-300 hover:border-blue-400 hover:bg-gradient-to-br hover:from-gray-50 hover:to-blue-50 hover:scale-[1.02]'
@@ -262,19 +351,19 @@ export default function Generate() {
               >
                 <input {...getInputProps()} />
                 <div className="relative z-10">
-                  <div className={`p-6 rounded-full w-20 h-20 mx-auto mb-6 transition-all duration-500 ${
+                  <div className={`p-3 rounded-full w-12 h-12 mx-auto mb-3 transition-all duration-500 ${
                     isDragActive 
                       ? 'bg-gradient-to-br from-blue-200 to-blue-300 scale-110' 
                       : 'bg-gradient-to-br from-blue-100 to-blue-200 group-hover/upload:scale-110'
                   }`}>
-                    <Upload className={`w-8 h-8 mx-auto transition-all duration-500 ${
+                    <Upload className={`w-5 h-5 mx-auto transition-all duration-500 ${
                       isDragActive ? 'text-blue-700 animate-bounce' : 'text-blue-600'
                     }`} />
                   </div>
-                  <p className="text-gray-700 text-xl font-semibold mb-3">
-                    {isDragActive ? '🎉 Drop your images here!' : '📸 Drag & drop images here, or click to select'}
+                  <p className="text-gray-700 text-base font-semibold mb-1">
+                    {isDragActive ? '🎉 Drop your images here!' : '📸 Click or drag images'}
                   </p>
-                  <p className="text-sm text-gray-500 font-medium">Supports: JPG, PNG, GIF, WebP</p>
+                  <p className="text-xs text-gray-500 font-medium">JPG, PNG, GIF, WebP</p>
                 </div>
                 
                 {/* Animated background elements */}
@@ -365,15 +454,15 @@ export default function Generate() {
               </div>
               
               {!audioFile ? (
-                <div className="border-3 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-500 border-gray-300 hover:border-indigo-400 hover:bg-gradient-to-br hover:from-gray-50 hover:to-indigo-50 group/audio">
+                <div className="border-3 border-dashed rounded-2xl p-3 text-center cursor-pointer transition-all duration-500 border-gray-300 hover:border-indigo-400 hover:bg-gradient-to-br hover:from-gray-50 hover:to-indigo-50 group/audio">
                   <label className="cursor-pointer block">
-                    <div className="p-6 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-full w-20 h-20 mx-auto mb-6 group-hover/audio:scale-110 transition-transform duration-300">
-                      <Upload className="w-8 h-8 mx-auto text-indigo-600" />
+                    <div className="p-3 bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-full w-12 h-12 mx-auto mb-3 group-hover/audio:scale-110 transition-transform duration-300">
+                      <Upload className="w-5 h-5 mx-auto text-indigo-600" />
                     </div>
-                    <p className="text-gray-700 text-xl font-semibold mb-3">
-                      🎵 Click to upload background audio
+                    <p className="text-gray-700 text-base font-semibold mb-1">
+                      🎵 Upload audio
                     </p>
-                    <p className="text-sm text-gray-500 font-medium">Supports: MP3, WAV, OGG</p>
+                    <p className="text-xs text-gray-500 font-medium">MP3, WAV, OGG</p>
                     <input
                       type="file"
                       accept="audio/*"
@@ -539,97 +628,45 @@ export default function Generate() {
               </div>
             </div>
 
-            {/* Generate Button */}
-            <button
-              onClick={handleGenerateVideo}
-              disabled={isGenerating || !text.trim() || backgroundImages.length === 0}
-              className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white py-6 px-8 rounded-3xl font-bold text-xl hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-500 transform hover:scale-[1.02] disabled:scale-100 shadow-2xl hover:shadow-3xl flex items-center justify-center gap-4 relative overflow-hidden group"
-            >
-              {/* Animated background */}
-              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12"></div>
-              
-              {isGenerating ? (
-                <>
-                  <div className="relative">
-                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent"></div>
-                    <div className="absolute inset-0 animate-ping rounded-full h-8 w-8 border-2 border-white opacity-30"></div>
-                  </div>
-                  <span className="animate-pulse">Generating Your Masterpiece...</span>
-                </>
-              ) : (
-                <>
-                  <div className="p-3 bg-white/20 rounded-2xl group-hover:bg-white/30 transition-colors duration-300">
-                    <Zap className="w-8 h-8" />
-                  </div>
-                  <span>✨ Generate Video Magic</span>
-                  {(audioFile || backgroundImages.length > 0) && (
-                    <div className="flex items-center gap-2 text-lg opacity-90 bg-white/20 px-4 py-2 rounded-full">
-                      <Clock className="w-5 h-5" />
-                      <span>{totalVideoDuration}s</span>
-                    </div>
-                  )}
-                </>
-              )}
-            </button>
+            {/* Generate Button - Moved to bottom of video preview */}
           </div>
 
-          {/* Preview Section */}
-          <div className={videoLayout === 'portrait' ? styles.previewPortrait : styles.previewLandscape}>
-            <div className="flex items-center gap-4 mb-6">
-              <div className="p-3 bg-gradient-to-br from-orange-100 to-red-200 rounded-2xl group-hover:scale-110 transition-transform duration-300">
-                <Play className="w-7 h-7 text-orange-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">Live Preview</h2>
-                <p className="text-sm text-gray-500">Watch your creation come to life</p>
-              </div>
-            </div>
-
-            {/* Video Container - Adjusted to match video dimensions */}
-            <div className={`relative  ${videoLayout === 'portrait' ? 'aspect-[9/16]' : 'aspect-video'} mb-6`}>
-              <div className=" inset-0 bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 rounded-3xl flex items-center justify-center border-3 border-dashed border-gray-300 overflow-hidden shadow-inner">
-                {generatedVideo ? (
-                  <video
-                    src={generatedVideo}
-                    controls
-                    className="absolute inset-0 w-full h-full rounded-3xl object-cover"
-                  />
-                ) : (
-                  <div className="text-center text-gray-500 p-12 animate-fade-in">
-                    <div className="relative">
-                      <div className="p-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full w-32 h-32 mx-auto mb-6 flex items-center justify-center shadow-inner animate-pulse">
-                        <Play className="w-16 h-16 opacity-50" />
-                      </div>
-                      <div className="absolute inset-0 rounded-full border-4 border-dashed border-gray-300 animate-spin"></div>
-                    </div>
-                    <p className="text-xl font-bold mb-3">🎬 Your video preview will appear here</p>
-                    <p className="text-base">Upload images and add text to get started</p>
-                    <div className="flex items-center justify-center gap-2 mt-4 text-sm">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce delay-100"></div>
-                      <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce delay-200"></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Download Button */}
-            {generatedVideo && (
-              <button
-                onClick={handleDownload}
-                className="w-full bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white py-4 px-6 rounded-2xl hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 transition-all duration-300 transform hover:scale-[1.02] shadow-xl hover:shadow-2xl flex items-center justify-center gap-3 font-bold text-lg group/download"
-              >
-                <div className="p-2 bg-white/20 rounded-lg group-hover/download:bg-white/30 transition-colors duration-300">
-                  <Download className="w-6 h-6" />
-                </div>
-                <span>Download Your Masterpiece</span>
-                <div className="animate-bounce">🎉</div>
-              </button>
-            )}
-          </div>
         </div>
       </div>
+      <div className="md:col-span-2 flex justify-center">
+              <button
+                onClick={handleGenerateVideo}
+                disabled={isGenerating || !text.trim() || backgroundImages.length === 0}
+                className="w-[400px] bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white py-6 px-8 rounded-3xl font-bold text-xl hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-500 transform hover:scale-[1.02] disabled:scale-100 shadow-2xl hover:shadow-3xl flex items-center justify-center gap-4 relative overflow-hidden group"
+              >
+                {/* Animated background */}
+                <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12"></div>
+                
+                {isGenerating ? (
+                  <>
+                    <div className="relative">
+                      <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent"></div>
+                      <div className="absolute inset-0 animate-ping rounded-full h-8 w-8 border-2 border-white opacity-30"></div>
+                    </div>
+                    <span className="animate-pulse">Generating Your Masterpiece...</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="p-3 bg-white/20 rounded-2xl group-hover:bg-white/30 transition-colors duration-300">
+                      <Zap className="w-8 h-8" />
+                    </div>
+                    <span>✨ Generate Video Magic</span>
+                    {(audioFile || backgroundImages.length > 0) && (
+                      <div className="flex items-center gap-2 text-lg opacity-90 bg-white/20 px-4 py-2 rounded-full">
+                        <Clock className="w-5 h-5" />
+                        <span>{totalVideoDuration}s</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </button>
+            </div>
+           
 
       <style jsx>{`
         @keyframes fade-in {
@@ -638,6 +675,22 @@ export default function Generate() {
         }
         .animate-fade-in {
           animation: fade-in 0.6s ease-out;
+        }
+        .portraitVideo {
+          width: 100%;
+          max-width: 400px;
+          height: auto;
+          border-radius: 1.5rem;
+          margin: 0 auto;
+          display: block;
+        }
+        .landscapeVideo {
+          width: 100%;
+          max-width: 800px;
+          height: auto;
+          border-radius: 1.5rem;
+          margin: 0 auto;
+          display: block;
         }
         .slider::-webkit-slider-thumb {
           appearance: none;

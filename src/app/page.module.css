@@ -1,6 +1,6 @@
 .previewPortrait{
     width: 100%;
-    height: 1250px;
+    height: 850px;
     border-radius: 30px;
     padding: 20px;
     border: 1px solid white;
@@ -8,9 +8,29 @@
 }
 .previewLandscape{
     width: 100%;
-    height: 550px;
+    height: 450px;
     border-radius: 30px;
     padding: 20px;
     border: 1px solid white;
     background-color: white;
+}
+.portraitVideo{
+    width: 100%;
+    max-width: 400px;
+    height: auto;
+    max-height: 600px;
+    border-radius: 1.5rem;
+    margin: 0 auto;
+    display: block;
+    object-fit: contain;
+}
+.landscapeVideo{
+    width: 100%;
+    max-width: 600px;
+    height: auto;
+    max-height: 350px;
+    border-radius: 1.5rem;
+    margin: 0 auto;
+    display: block;
+    object-fit: contain;
 }
