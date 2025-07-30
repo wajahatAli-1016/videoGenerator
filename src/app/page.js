@@ -1,492 +1,216 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { Upload, Play, Download, Settings, Type, Image as ImageIcon, Music } from 'lucide-react';
-import { useDropzone } from 'react-dropzone';
-import VideoGenerator from '../components/VideoGenerator.js';
+import Link from 'next/link';
+import { Play, Sparkles, Video, Image as ImageIcon, Type, Music, ArrowRight, Star, Zap, Users, Award } from 'lucide-react';
 
 export default function Home() {
-  const [text, setText] = useState('');
-  const [backgroundImages, setBackgroundImages] = useState([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedVideo, setGeneratedVideo] = useState(null);
-  const [audioFile, setAudioFile] = useState(null);
-  const [audioPreview, setAudioPreview] = useState(null);
-  const [audioDuration, setAudioDuration] = useState(0);
-  const [textSettings, setTextSettings] = useState({
-    fontSize: 48,
-    color: '#ffffff',
-    position: 'center',
-    fontFamily: 'Arial'
-  });
-  const [videoLayout, setVideoLayout] = useState('landscape'); // 'landscape' or 'portrait'
-
-  const onDrop = (acceptedFiles) => {
-    acceptedFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setBackgroundImages(prev => [...prev, {
-          id: Date.now() + Math.random(),
-          file: file,
-          preview: e.target.result,
-          duration: 5 // Default 5 seconds
-        }]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
-    },
-    multiple: true
-  });
-
-  const handleGenerateVideo = async () => {
-    if (!text.trim() || backgroundImages.length === 0) {
-      alert('Please provide both text and at least one background image');
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      console.log('VideoGenerator object:', VideoGenerator);
-      console.log('Available methods:', Object.getOwnPropertyNames(VideoGenerator));
-      
-      let videoBlob;
-      
-      // Check if multi-image method exists, otherwise use single image method
-      if (VideoGenerator.generateMultiImageVideo && typeof VideoGenerator.generateMultiImageVideo === 'function') {
-        console.log('Using multi-image video generation');
-        videoBlob = await VideoGenerator.generateMultiImageVideo(text, backgroundImages, textSettings, audioFile, videoLayout);
-      } else {
-        console.log('Multi-image method not found, using single image method');
-        // Use the first image for now
-        videoBlob = await VideoGenerator.generateVideo(text, backgroundImages[0].file, textSettings, audioFile, videoLayout);
-      }
-      
-      setGeneratedVideo(URL.createObjectURL(videoBlob));
-    } catch (error) {
-      console.error('Error generating video:', error);
-      alert('Error generating video. Please try again.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const updateImageDuration = (id, duration) => {
-    setBackgroundImages(prev => 
-      prev.map(img => 
-        img.id === id ? { ...img, duration: parseInt(duration) || 5 } : img
-      )
-    );
-  };
-
-  const removeImage = (id) => {
-    setBackgroundImages(prev => prev.filter(img => img.id !== id));
-  };
-
-  const clearAllImages = () => {
-    setBackgroundImages([]);
-  };
-
-  const handleAudioUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setAudioFile(file);
-      setAudioPreview(URL.createObjectURL(file));
-      
-      // Get audio duration
-      const audio = new Audio();
-      audio.src = URL.createObjectURL(file);
-      audio.onloadedmetadata = () => {
-        setAudioDuration(Math.ceil(audio.duration));
-      };
-    }
-  };
-
-  const removeAudio = () => {
-    setAudioFile(null);
-    if (audioPreview) {
-      URL.revokeObjectURL(audioPreview);
-      setAudioPreview(null);
-    }
-    setAudioDuration(0);
-  };
-
-  const handleDownload = () => {
-    if (generatedVideo) {
-      const link = document.createElement('a');
-      link.href = generatedVideo;
-      // Use .webm extension since that's what we're generating
-      link.download = 'generated-video.webm';
-      link.click();
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-white/20 sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-6">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-indigo-400/20 to-pink-400/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-br from-green-400/10 to-blue-400/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
+
+      {/* Hero Section */}
+      <div className="container mx-auto px-6 py-16 relative z-10">
+        <div className="text-center max-w-5xl mx-auto">
+          {/* Main Title */}
+          <div className="mb-12 relative">
+            <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 w-24 h-24 bg-gradient-to-br from-yellow-200 to-yellow-400 rounded-full blur-2xl opacity-60 animate-pulse"></div>
+            <h1 className="text-7xl md:text-8xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent mb-8 leading-tight relative animate-fade-in">
               Video Generator
             </h1>
-            <p className="text-gray-600 text-lg">
-              Create stunning videos with custom text overlaid on your images
+            <div className="flex items-center justify-center gap-2 mb-6">
+              <span className="px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full text-blue-800 text-sm font-semibold animate-fade-in-up">
+                Powered by AI
+              </span>
+              <span className="px-4 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full text-green-800 text-sm font-semibold animate-fade-in-up delay-100">
+                Easy to Use
+              </span>
+              <span className="px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full text-purple-800 text-sm font-semibold animate-fade-in-up delay-200">
+                Professional Results
+              </span>
+            </div>
+            <p className="text-2xl md:text-3xl text-gray-700 mb-6 leading-relaxed max-w-3xl mx-auto animate-fade-in-up delay-300">
+              Transform your ideas into stunning videos with AI-powered text overlays
+            </p>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto animate-fade-in-up delay-400">
+              Upload your images, add custom text, and create professional videos in minutes. 
+              Perfect for social media, presentations, and creative projects.
             </p>
           </div>
-        </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 max-w-7xl mx-auto">
-          {/* Input Section */}
-          <div className="space-y-6">
-            {/* Text Input */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Type className="w-6 h-6 text-blue-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Text Content</h2>
-              </div>
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Enter your text here... (supports multiple lines)"
-                className="w-full h-40 p-4 border-2 border-gray-200 rounded-xl resize-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-gray-700 placeholder-gray-400"
-              />
-            </div>
-
-            {/* Image Upload */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <ImageIcon className="w-6 h-6 text-green-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-800">Background Images</h2>
-                </div>
-                {backgroundImages.length > 0 && (
-                  <button
-                    onClick={clearAllImages}
-                    className="px-4 py-2 text-red-600 hover:text-red-800 text-sm font-medium bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
-                  >
-                    Clear All
-                  </button>
-                )}
-              </div>
-              
-              {/* Upload Area */}
-              <div
-                {...getRootProps()}
-                className={`border-3 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 mb-6 group ${
-                  isDragActive
-                    ? 'border-blue-500 bg-blue-50 scale-105'
-                    : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50 hover:scale-[1.02]'
-                }`}
-              >
-                <input {...getInputProps()} />
-                <div className="p-4 bg-blue-100 rounded-full w-16 h-16 mx-auto mb-4 group-hover:bg-blue-200 transition-colors duration-200">
-                  <Upload className="w-8 h-8 mx-auto text-blue-600" />
-                </div>
-                <p className="text-gray-700 text-lg font-medium mb-2">
-                  {isDragActive ? 'Drop images here' : 'Drag & drop images here, or click to select'}
-                </p>
-                <p className="text-sm text-gray-500">Supports: JPG, PNG, GIF, WebP</p>
-              </div>
-
-              {/* Image List */}
-              {backgroundImages.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-700 flex items-center gap-2">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-                      {backgroundImages.length}
-                    </span>
-                    Selected Images
-                  </h3>
-                  {backgroundImages.map((image, index) => (
-                    <div key={image.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200 hover:shadow-md transition-all duration-200">
-                      <div className="relative">
-                        <img
-                          src={image.preview}
-                          alt={`Image ${index + 1}`}
-                          className="w-20 h-20 object-cover rounded-lg shadow-sm"
-                        />
-                        <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
-                          {index + 1}
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate mb-2">
-                          {image.file.name}
-                        </p>
-                        <div className="flex items-center gap-3">
-                          <label className="text-sm text-gray-600 font-medium">Duration:</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="30"
-                            value={image.duration}
-                            onChange={(e) => updateImageDuration(image.id, e.target.value)}
-                            className="w-20 px-3 py-1 text-sm border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                          />
-                          <span className="text-sm text-gray-500">seconds</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => removeImage(image.id)}
-                        className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
-                        title="Remove image"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Audio Upload */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-100 rounded-lg">
-                    <Music className="w-6 h-6 text-indigo-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-800">Background Audio</h2>
-                </div>
-                {audioFile && (
-                  <button
-                    onClick={removeAudio}
-                    className="px-4 py-2 text-red-600 hover:text-red-800 text-sm font-medium bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
-                  >
-                    Remove Audio
-                  </button>
-                )}
-              </div>
-              
-              {!audioFile ? (
-                <div className="border-3 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all duration-300 border-gray-300 hover:border-indigo-400 hover:bg-gray-50">
-                  <label className="cursor-pointer block">
-                    <div className="p-4 bg-indigo-100 rounded-full w-16 h-16 mx-auto mb-4 group-hover:bg-indigo-200 transition-colors duration-200">
-                      <Upload className="w-8 h-8 mx-auto text-indigo-600" />
-                    </div>
-                    <p className="text-gray-700 text-lg font-medium mb-2">
-                      Click to upload background audio
-                    </p>
-                    <p className="text-sm text-gray-500">Supports: MP3, WAV</p>
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      onChange={handleAudioUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              ) : (
-                <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-100 rounded-lg">
-                      <Music className="w-6 h-6 text-indigo-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-gray-800 mb-1">
-                        {audioFile.name}
-                      </p>
-                      <audio
-                        controls
-                        src={audioPreview}
-                        className="w-full h-8"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Text Settings */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Settings className="w-6 h-6 text-purple-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Settings</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Video Layout */}
-                <div className="space-y-3">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Video Layout
-                  </label>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => setVideoLayout('landscape')}
-                      className={`flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
-                        videoLayout === 'landscape'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-full h-12 bg-gray-200 rounded-md mb-2"></div>
-                      <span className="text-sm font-medium">Landscape</span>
-                      <span className="text-xs text-gray-500 block">16:9</span>
-                    </button>
-                    <button
-                      onClick={() => setVideoLayout('portrait')}
-                      className={`flex-1 p-4 rounded-lg border-2 transition-all duration-200 ${
-                        videoLayout === 'portrait'
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-8 h-16 bg-gray-200 rounded-md mx-auto mb-2"></div>
-                      <span className="text-sm font-medium">Portrait</span>
-                      <span className="text-xs text-gray-500 block">9:16</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Font Size */}
-                <div className="space-y-3">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Font Size: {textSettings.fontSize}px
-                  </label>
-                  <input
-                    type="range"
-                    min="16"
-                    max="120"
-                    value={textSettings.fontSize}
-                    onChange={(e) => setTextSettings(prev => ({ ...prev, fontSize: parseInt(e.target.value) }))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>16px</span>
-                    <span>120px</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Text Color
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={textSettings.color}
-                      onChange={(e) => setTextSettings(prev => ({ ...prev, color: e.target.value }))}
-                      className="w-16 h-12 rounded-lg border-2 border-gray-200 cursor-pointer"
-                    />
-                    <span className="text-sm text-gray-600">{textSettings.color}</span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Position
-                  </label>
-                  <select
-                    value={textSettings.position}
-                    onChange={(e) => setTextSettings(prev => ({ ...prev, position: e.target.value }))}
-                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
-                  >
-                    <option value="center">Center</option>
-                    <option value="top">Top</option>
-                    <option value="bottom">Bottom</option>
-                    <option value="top-left">Top Left</option>
-                    <option value="top-right">Top Right</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="bottom-right">Bottom Right</option>
-                  </select>
-                </div>
-                <div className="space-y-3">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Font Family
-                  </label>
-                  <select
-                    value={textSettings.fontFamily}
-                    onChange={(e) => setTextSettings(prev => ({ ...prev, fontFamily: e.target.value }))}
-                    className="w-full p-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
-                  >
-                    <option value="Arial">Arial</option>
-                    <option value="Helvetica">Helvetica</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Georgia">Georgia</option>
-                    <option value="Verdana">Verdana</option>
-                    <option value="Courier New">Courier New</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Generate Button */}
-            <button
-              onClick={handleGenerateVideo}
-              disabled={isGenerating || !text.trim() || backgroundImages.length === 0}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-8 rounded-2xl font-bold text-lg hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02] disabled:scale-100 shadow-xl hover:shadow-2xl flex items-center justify-center gap-3"
+         
+          {/* CTA Button */}
+          <div className="mb-20 animate-fade-in-up delay-600">
+            <Link 
+              href="/generate"
+              className="inline-flex items-center gap-4 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:from-blue-700 hover:via-purple-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 shadow-2xl hover:shadow-3xl group relative overflow-hidden"
             >
-              {isGenerating ? (
-                <>
-                  <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-t-transparent"></div>
-                  <span>Generating Video...</span>
-                </>
-              ) : (
-                <>
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <Play className="w-6 h-6" />
-                  </div>
-                  <span>Generate Video</span>
-                  {(audioFile || backgroundImages.length > 0) && (
-                    <span className="text-sm opacity-90 bg-white/20 px-3 py-1 rounded-full">
-                      {audioFile ? `${audioDuration}s` : `${backgroundImages.reduce((total, img) => total + img.duration, 0)}s`}
-                    </span>
-                  )}
-                </>
-              )}
-            </button>
+              <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12"></div>
+              <div className="p-2 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors duration-300">
+                <Zap className="w-8 h-8" />
+              </div>
+              <span>Start Creating Videos</span>
+              <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform duration-300" />
+            </Link>
           </div>
 
-          {/* Preview Section */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Play className="w-6 h-6 text-orange-600" />
+          {/* Features Preview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 group hover:scale-105 hover:-translate-y-2">
+              <div className="p-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl w-16 h-16 mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                <ImageIcon className="w-8 h-8 text-blue-600 mx-auto" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-800">Preview</h2>
+              <h3 className="text-xl font-bold text-gray-800 mb-3">Multiple Images</h3>
+              <p className="text-gray-600">
+                Upload multiple images and set custom durations for each to create dynamic video sequences
+              </p>
             </div>
-            <div className={`relative ${videoLayout === 'portrait' ? 'aspect-[9/16]' : 'aspect-video'} bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300 overflow-hidden`}>
-              {generatedVideo ? (
-                <div className="w-full h-full">
-                  <video
-                    src={generatedVideo}
-                    controls
-                    className="w-full h-full rounded-2xl object-cover"
-                  />
-                  <button
-                    onClick={handleDownload}
-                    className="w-full mt-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 px-6 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl flex items-center justify-center gap-2 font-semibold"
-                  >
-                    <Download className="w-5 h-5" />
-                    Download Video
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 p-8">
-                  <div className="p-6 bg-gray-100 rounded-full w-24 h-24 mx-auto mb-4 flex items-center justify-center">
-                    <Play className="w-12 h-12 opacity-50" />
-                  </div>
-                  <p className="text-lg font-medium">Generated video will appear here</p>
-                  <p className="text-sm mt-2">Upload images and add text to get started</p>
-                </div>
-              )}
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 group hover:scale-105 hover:-translate-y-2">
+              <div className="p-4 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl w-16 h-16 mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Type className="w-8 h-8 text-purple-600 mx-auto" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-3">Custom Text</h3>
+              <p className="text-gray-600">
+                Add beautiful text overlays with customizable fonts, colors, sizes, and positioning
+              </p>
             </div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-500 group hover:scale-105 hover:-translate-y-2">
+              <div className="p-4 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl w-16 h-16 mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                <Music className="w-8 h-8 text-green-600 mx-auto" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-3">Background Audio</h3>
+              <p className="text-gray-600">
+                Add background music or voiceovers to make your videos more engaging and professional
+              </p>
+            </div>
+          </div>
+
+          {/* Video Formats */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-12 shadow-xl border border-white/20 mb-20">
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-12">Perfect for Every Platform</h2>
+            <div className="flex flex-col md:flex-row items-center justify-center gap-16">
+              <div className="text-center group">
+                <div className="w-64 h-36 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl border-2 border-blue-300 mb-6 flex items-center justify-center shadow-xl group-hover:shadow-2xl group-hover:scale-105 transition-all duration-300 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12"></div>
+                  <Video className="w-16 h-16 text-blue-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">Landscape (16:9)</h3>
+                <p className="text-gray-600">Perfect for YouTube, presentations, and desktop viewing</p>
+              </div>
+              
+              <div className="text-center group">
+                <div className="w-36 h-64 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl border-2 border-purple-300 mb-6 flex items-center justify-center shadow-xl group-hover:shadow-2xl group-hover:scale-105 transition-all duration-300 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12"></div>
+                  <Video className="w-16 h-16 text-purple-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">Portrait (9:16)</h3>
+                <p className="text-gray-600">Ideal for TikTok, Instagram Stories, and mobile content</p>
+              </div>
+            </div>
+          </div>
+
+          {/* How It Works */}
+          <div className="mb-20">
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-16">How It Works</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              <div className="text-center group relative">
+                <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-xl relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12 rounded-2xl"></div>
+                  1
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-3">Upload Images</h3>
+                <p className="text-gray-600">Drag and drop your images or click to select</p>
+              </div>
+              
+              <div className="text-center group relative">
+                <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-xl relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12 rounded-2xl"></div>
+                  2
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-3">Add Text</h3>
+                <p className="text-gray-600">Write your content and customize the appearance</p>
+              </div>
+              
+              <div className="text-center group relative">
+                <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-xl relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12 rounded-2xl"></div>
+                  3
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-3">Configure Settings</h3>
+                <p className="text-gray-600">Choose layout, add audio, and adjust timing</p>
+              </div>
+              
+              <div className="text-center group relative">
+                <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-xl relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12 rounded-2xl"></div>
+                  4
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-3">Generate & Download</h3>
+                <p className="text-gray-600">Create your video and download in high quality</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Call to Action */}
+          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 rounded-3xl p-16 text-white text-center relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 translate-x-[-100%] group-hover:translate-x-[100%] skew-x-12"></div>
+            <h2 className="text-5xl font-bold mb-6 relative">Ready to Create Amazing Videos?</h2>
+            <p className="text-2xl mb-10 opacity-90 relative">
+              Join thousands of creators who are already making stunning videos with our tool
+            </p>
+            <Link 
+              href="/generate"
+              className="inline-flex items-center gap-4 bg-white text-blue-600 px-10 py-5 rounded-2xl font-bold text-xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 shadow-lg hover:shadow-xl group/btn relative"
+            >
+              <Sparkles className="w-6 h-6" />
+              <span>Get Started Now</span>
+              <ArrowRight className="w-6 h-6 group-hover/btn:translate-x-2 transition-transform duration-300" />
+            </Link>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(40px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 1s ease-out;
+        }
+        .animate-fade-in-up {
+          animation: fade-in-up 1s ease-out forwards;
+          opacity: 0;
+        }
+        .delay-100 {
+          animation-delay: 100ms;
+        }
+        .delay-200 {
+          animation-delay: 200ms;
+        }
+        .delay-300 {
+          animation-delay: 300ms;
+        }
+        .delay-400 {
+          animation-delay: 400ms;
+        }
+        .delay-500 {
+          animation-delay: 500ms;
+        }
+        .delay-600 {
+          animation-delay: 600ms;
+        }
+      `}</style>
     </div>
   );
 }
